@@ -1,0 +1,51 @@
+import pandas as pd
+import numpy as np
+import os
+
+def process_data(file_name, label_r, skip_initial=100, skip_final=100, window_size=10):
+    if not os.path.exists(file_name):
+        print(f"Lỗi: Không tìm thấy file {file_name}")
+        return None
+
+    # Đọc file, bỏ qua 3 dòng chú thích đầu của Excel Data Streamer
+    df = pd.read_csv(file_name, skiprows=3, header=None)
+    
+    # 1. Xóa skip_initial mẫu đầu tiên và skip_final mẫu cuối cùng
+    # Chúng ta dùng slicing từ vị trí skip_initial đến -(skip_final)
+    if len(df) > (skip_initial + skip_final + window_size):
+        df = df.iloc[skip_initial : -skip_final].reset_index(drop=True)
+    else:
+        print(f"Cảnh báo: File {file_name} quá ngắn để cắt đầu đuôi!")
+        return None
+    
+    # Cột 3 là AccZ dựa trên cấu trúc file bạn cung cấp
+    acc_z = df.iloc[:, 3] 
+    
+    features = []
+    # 2. Tính toán trên cửa sổ trượt
+    for i in range(len(acc_z) - window_size):
+        window = acc_z[i : i + window_size]
+        features.append([
+            np.var(window),    # Phương sai
+            np.std(window),    # Độ lệch chuẩn
+            label_r            # Nhãn R
+        ])
+    
+    print(f"Đã xử lý xong {file_name} (Đã cắt 100 dòng đầu và 100 dòng cuối)")
+    return pd.DataFrame(features, columns=['Variance', 'Std_Dev', 'Label_R'])
+
+# --- CHẠY XỬ LÝ ---
+# Tên file chính xác từ dữ liệu bạn đã upload
+f1 = 'tinh3  - 2026-03-04 - Recording 1.csv'
+f2 = 'rung 2  - 2026-03-04 - Recording 1.csv'
+f3 = 'rung manh1  - 2026-03-04 - Recording 1.csv'
+
+data_tinh = process_data(f1, label_r=0.01)
+data_vua  = process_data(f2, label_r=0.5)
+data_manh = process_data(f3, label_r=5.0)
+
+# Gộp và lưu thành file cuối cùng
+if data_tinh is not None and data_vua is not None and data_manh is not None:
+    final_df = pd.concat([data_tinh, data_vua, data_manh], ignore_index=True)
+    final_df.to_csv('dataset_for_ml.csv', index=False)
+    print("--- THÀNH CÔNG: Đã tạo file dataset_for_ml.csv ---")

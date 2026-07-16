@@ -1,0 +1,45 @@
+import pandas as pd
+import os
+
+# 1. Danh sách các file và nhãn (nếu bạn muốn gán nhãn luôn để train)
+file_list = [
+    'tinh3  - 2026-03-04 - Recording 1.csv',
+    'rung 2  - 2026-03-04 - Recording 1.csv',
+    'rung manh1  - 2026-03-04 - Recording 1.csv'
+]
+
+all_data = []
+
+print("--- Bắt đầu xử lý gộp file ---")
+
+for file_name in file_list:
+    if os.path.exists(file_name):
+        # Đọc file, bỏ qua 3 dòng chú thích đầu của Excel Data Streamer (#!)
+        df = pd.read_csv(file_name, skiprows=3, header=None)
+        
+        # Kiểm tra nếu file có đủ dòng để cắt không
+        if len(df) > 200:
+            # Xóa 100 dòng đầu và 100 dòng cuối
+            # iloc[100:-100] lấy từ dòng index 100 đến dòng cách cuối 100 dòng
+            df_cleaned = df.iloc[100:-100].reset_index(drop=True)
+            
+            all_data.append(df_cleaned)
+            print(f"Đã xử lý: {file_name} (Lấy {len(df_cleaned)} dòng)")
+        else:
+            print(f"Cảnh báo: File {file_name} quá ngắn, không đủ 200 dòng để cắt.")
+    else:
+        print(f"Lỗi: Không tìm thấy file '{file_name}' trong thư mục hiện tại.")
+
+# 2. Gộp tất cả dữ liệu lại
+if all_data:
+    combined_df = pd.concat(all_data, ignore_index=True)
+    
+    # Đặt tên cột cho dễ quản lý (theo thứ tự của MPU6050 bạn đã cài)
+    combined_df.columns = ['Timestamp', 'AccX', 'AccY', 'AccZ', 'GyroX', 'GyroY', 'GyroZ']
+    
+    # 3. Xuất ra file CSV tổng hợp
+    combined_df.to_csv('data_tong_hop.csv', index=False)
+    print("\n--- HOÀN THÀNH ---")
+    print(f"File tổng hợp 'data_tong_hop.csv' đã được tạo với tổng cộng {len(combined_df)} dòng.")
+else:
+    print("\nKhông có dữ liệu nào được gộp.")
